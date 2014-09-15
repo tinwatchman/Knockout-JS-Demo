@@ -1,0 +1,533 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="description" content="A basic word processor web application written using Knockout.js and IndexedDB, written by Jon Stout">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Knockout.js / IndexedDB Demonstration App</title>
+        <link rel="stylesheet" href="bootstrap/css/bootstrap.css">
+        <link rel="stylesheet" href="bootstrap/css/bootstrap-theme.css">
+    </head>
+    <body>
+        <!-- frame that contains the list of documents -->
+        <section id="docList" class="container-fluid">
+            <header class="row">
+                <div class="col-xs-12 page-header">
+                    <h4 class="h2">Select or create document</h4>
+                </div>
+            </header>
+            <div class="row">
+                <div class="col-xs-12">
+                    <div id="list" class="list-group" data-bind="foreach: documents">
+                        <a href="#" class="list-group-item" data-bind="attr: {id: 'listitem-' + uuid}, click: $parent.onTextDocumentSelected">
+                            <h5 class="h4 list-group-item-heading" data-bind="text: title"></h5>
+                            <p class="list-group-item-text">Created <span data-bind="text: created().toLocaleString()"></span><span data-bind="if: isModified()">, last modified <span data-bind="text: modified().toLocaleString()"></span></span></p>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6 pull-right text-right">
+                    <button type="button" class="btn btn-primary btn-lg" data-toggle="modal" data-target="#createNewModal">Create New</button>
+                    <button type="button" class="btn btn-danger btn-lg" data-toggle="modal" data-target="#deleteDocModal" data-bind="enable: isTextDocumentSelected()">Delete</button>
+                    <button type="button" class="btn btn-success btn-lg" data-bind="enable: isTextDocumentSelected(), click: onEditDocument">Load</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- frame that allows user to edit a document -->
+        <section id="docEdit" class="container-fluid" data-bind="with: selectedDocument">
+            <header class="row">
+                <div class="col-xs-12 page-header">
+                    <h4 class="h2">Editing <span data-bind="text: title"></span></h4>
+                </div>
+            </header>
+            <div class="row">
+                <div class="col-xs-12">
+                    <div class="form-group">
+                        <label for="docTitle">Edit Title:</label>
+                        <input id="docTitle" type="text" class="form-control" data-bind="textInput: title">
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-xs-12">
+                    <div class="form-group">
+                        <textarea class="form-control" rows="5" data-bind="textInput: text"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-xs-12">
+                    <div class="form-group text-right">
+                        <button class="btn btn-primary" data-bind="click: $parent.onSaveDocument">Save and Close</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- MODALS -->
+
+        <!-- Create New Text Document Modal -->
+        <div id="createNewModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="createNewModalHeader" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+                        <h6 id="createNewModalHeader" class="h4 modal-title">Enter new document title</h6>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="newDocTitle">Please enter an initial title or name for this document:</label>
+                            <input id="newDocTitle" type="text" class="form-control" placeholder="Enter title">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" data-bind="click: onCreateNew">Create</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirm Delete Document Modal -->
+        <div id="deleteDocModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="deleteDocHeader" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+                        <h6 id="deleteDocHeader" class="h4 modal-title">Are you sure?</h6>
+                    </div>
+                    <div class="modal-body" data-bind="with: selectedDocument">
+                        <p>Are you sure you want to delete '<span data-bind="text: title"></span>'?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-danger" data-bind="click: onDeleteDocument">Yes</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- No IndexedDB Modal -->
+        <div id="noDatabaseModal" class="modal fade" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false" data-show="false" aria-labelledby="noDatabaseHeader" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h6 id="noDatabaseHeader" class="h4 modal-title">Incompatible Browser</h6>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-danger" role="alert">Our apologies, but this application requires a browser that supports IndexedDB in order to function. <strong>Please try again with a different browser</strong> (like Firefox or Chrome).</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- JavaScript -->
+
+        <script src="jquery-2.1.1.min.js" type="text/javascript"></script>
+        <script src="bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
+        <script src="knockout-3.2.0.js" type="text/javascript"></script>
+        <script src="jquery-observer.js" type="text/javascript"></script>
+        <script src="Math.uuid.js" type="text/javascript"></script>
+        <script type="text/javascript">
+            ;(function($, ko, window, document) {
+                /* TEXT DOCUMENT MODEL OBJECT */
+
+                /**
+                 * Object representing a Text Document within the application.
+                 * @param {[String]} id - a valid uuid
+                 * @param {[String]} title - document title
+                 * @param {[Date]} created - time created
+                 * @param {[Date]} modified - time last modified
+                 */
+                var TextDocument = function(id, title, created, modified) {
+                    this.uuid = id;
+                    this.title = ko.observable(title);
+                    this.created = ko.observable(created);
+                    this.modified = ko.observable(modified);
+                    this.text = ko.observable("");
+                    this.isDeleted = false;
+                }
+                TextDocument.prototype = {
+                    uuid: null,
+                    title: null,
+                    created: null,
+                    modified: null,
+                    text: null,
+                    isDeleted: false,
+
+                    /**
+                     * Returns whether or not the text document has been modified since
+                     * it was created.
+                     * @return true if modified, false otherwise
+                     */
+                    isModified: function() {
+                        if (this.created() != null && this.modified() != null) {
+                            return (this.created().getTime() != this.modified().getTime());
+                        }
+                        return false;
+                    },
+
+                    /**
+                     * Returns instance as a flat, observable-less object that can be
+                     * added to IndexedDB.
+                     * @return {[Object]}
+                     */
+                    toObject: function() {
+                        return {
+                            'uuid': this.uuid,
+                            'title': this.title(),
+                            'created': this.created(),
+                            'modified': this.modified(),
+                            'text': this.text(),
+                            'isDeleted': this.isDeleted
+                        };
+                    }
+                }
+
+                /* INDEXED DB PROXY */
+                var DBProxy = function() {
+                    window.indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
+                    if (!window.indexedDB) {
+                        this.isNonFunctional = true;
+                    } else {
+                        this.init();
+                    }
+                }
+                DBProxy.prototype = {
+                    dbName: 'knockoutDemo',
+                    version: 1,
+                    db: null,
+                    isInitialized: false,
+                    isNonFunctional: false,
+
+                    /**
+                     * Initialize the database
+                     */
+                    init: function() {
+                        var self = this,
+                            request = window.indexedDB.open(this.dbName, this.version);
+                        request.onsuccess = function(event) {
+                            self.onDatabaseOpen(event);
+                        }
+                        request.onerror = function(event) {
+                            self.onDatabaseError(event);
+                        }
+                        request.onupgradeneeded = function(event) {
+                            self.onDatabaseSetup(event);
+                        }
+                    },
+
+                    /**
+                     * Load the list of existing documents
+                     */
+                    load: function() {
+                        var store = this.db.transaction(["textDocuments"], "readonly").objectStore("textDocuments"),
+                            request = store.openCursor(),
+                            docs = [],
+                            self = this;
+                        request.onsuccess = function(event) {
+                            var cursor = event.target.result;
+                            if (cursor && cursor.value) {
+                                docs.push(cursor.value);
+                                cursor.continue();
+                            } else {
+                                $.publish("db/load/complete", docs);
+                            }
+                        }
+                        request.onerror = function(event) {
+                            self.onDatabaseError(event);
+                        }
+                    },
+
+                    /** 
+                     * Adds a new document to the database.
+                     * @param {[TextDocument]} doc
+                     */
+                    add: function(doc) {
+                        window.console.log("adding document " + doc.uuid);
+                        var store = this.db.transaction(["textDocuments"], "readwrite").objectStore("textDocuments"),
+                            request = store.add(doc.toObject()),
+                            self = this;
+                        request.onsuccess = function(event) {
+                            $.publish("db/add/complete", null);
+                        }
+                        request.onerror = function(event) {
+                            self.onDatabaseError(event);
+                        }
+                    },
+
+                    /**
+                     * Saves/updates a document's data within the database.
+                     * @param  {[TextDocument]} doc
+                     */
+                    save: function(doc) {
+                        window.console.log(doc.created().getTime());
+                        window.console.log(doc.modified().getTime());
+                        var store = this.db.transaction(["textDocuments"], "readwrite").objectStore("textDocuments"),
+                            request = store.get(doc.uuid),
+                            self = this;
+                        request.onsuccess = function(event) {
+                            var data = event.target.result,
+                                updateRequest = null;
+                            data.title = doc.title();
+                            data.modified = doc.modified();
+                            data.text = doc.text();
+                            updateRequest = store.put(data);
+                            updateRequest.onerror = function(event) {
+                                //TODO: something here
+                            }
+                            updateRequest.onsuccess = function(event) {
+                                $.publish("db/save/complete", null);
+                            }
+                        }
+                        request.onerror = function(event) {
+                            self.onDatabaseError(event);
+                        }
+                    },
+
+                    /**
+                     * Performs a soft delete on the given document.
+                     * @param  {[TextDocument]} doc
+                     */
+                    delete: function(doc) {
+                        var store = this.db.transaction(["textDocuments"], "readwrite").objectStore("textDocuments"),
+                            request = store.get(doc.uuid),
+                            self = this;
+                        request.onsuccess = function(event) {
+                            var realDoc = event.target.result,
+                                updateRequest = null;
+                            realDoc.isDeleted = true;
+                            updateRequest = store.put(realDoc);
+                            updateRequest.onsuccess = function() {
+                                $.publish("db/delete/complete", realDoc);
+                            }
+                        }
+                        request.onerror = function(event) {
+                            self.onDatabaseError(event);
+                        }
+                    },
+
+                    /**
+                     * Event handler. Called when the database is opened.
+                     * @param  {[Event]} event
+                     */
+                    onDatabaseOpen: function(event) {
+                        this.db = event.target.result;
+                        this.isInitialized = true;
+                        window.console.log("Database initialized!");
+                        $.publish("db/init/complete", null);
+                    },
+
+                    /**
+                     * Event handler. Called on a database error.
+                     * @param  {[Event]} event
+                     */
+                    onDatabaseError: function(event) {
+                        //TODO: something here
+                        alert("Database error!");
+                    },
+
+                    /**
+                     * Event handler. Called when the database needs
+                     * to be updated or set up for the first time.
+                     * @param  {[Event]} event
+                     */
+                    onDatabaseSetup: function(event) {
+                        var db = event.target.result,
+                            store = db.createObjectStore("textDocuments", {keyPath:"uuid"});
+                        window.console.log("Database set up!");
+                    }
+                }
+                var dbProxy = new DBProxy();
+
+                /* KNOCKOUT ViewModel */
+                var ViewModel = function() {
+                    var self = this,
+                        newDocTitleField = document.getElementById("newDocTitle");
+                    this.selectedDocument = ko.observable(null);
+                    this.documents = ko.observableArray();
+                    this.isBound = false;
+
+                    /**
+                     * Computed observable. Returns whether or not a document has
+                     * been selected.
+                     * @return true if selection, false otherwise.
+                     */
+                    this.isTextDocumentSelected = ko.pureComputed(function() {
+                        return (self.selectedDocument() != null);
+                    });
+
+                    ///////////////////
+                    //EVENT HANDLERS //
+                    ///////////////////
+
+                    /**
+                     * Event handler -- called when document list has been loaded
+                     * from the database.
+                     * @param  {[Array]} list of raw objects representing documents
+                     */
+                    this.onDocumentsLoaded = function(list) {
+                        list.sort(function(a, b) {
+                            if (a.modified.getTime() < b.modified.getTime()) {
+                                return 1;
+                            } else if (a.modified.getTime() > b.modified.getTime()) {
+                                return -1;
+                            }
+                            return 0;
+                        });
+                        var len = list.length,
+                            item = null,
+                            doc = null;
+                        for (var i=0; i<len; i++) {
+                            item = list[i];
+                            if (!item.isDeleted) {
+                                doc = new TextDocument(item.uuid, item.title, item.created, item.modified);
+                                doc.text(item.text);
+                                self.documents.push(doc);
+                            }
+                        }
+                        if (!self.isBound) {
+                            ko.applyBindings(self);
+                            self.isBound = true;
+                        }
+                    }
+
+                    /**
+                     * Event handler. Called when a document in the list is selected.
+                     * @param  {[TextDocument]} item
+                     */
+                    this.onTextDocumentSelected = function(item) {
+                        $("#list .list-group-item").removeClass("active");
+                        $('#listitem-' + item.uuid).addClass('active');
+                        self.selectedDocument(item);
+                    }
+
+                    /**
+                     * Event handler. Called when the user wants to create a new 
+                     * document (and has entered a title for it via the modal.)
+                     */
+                    this.onCreateNew = function() {
+                        var newTitle = newDocTitleField.value;
+                        if (newTitle == null || newTitle == "" || newTitle == newDocTitleField.placeholder) {
+                            alert("Please enter a valid title.");
+                            return;
+                        }
+                        var newDoc = new TextDocument(Math.uuid(), newTitle, new Date(), new Date());
+                        self.selectedDocument(newDoc);
+                        $.subscribe("db/add/complete", self, self.onDocumentAdded);
+                        dbProxy.add(newDoc);
+                        newDocTitleField.value = "";
+                    }
+
+                    /**
+                     * Event handler. Called when a newly-created document has been
+                     * added to the database.
+                     */
+                    this.onDocumentAdded = function() {
+                        $.unsubscribe("db/add/complete", this, this.onDocumentAdded);
+                        $("#createNewModal").modal('hide');
+                        this.showDocEdit();
+                        this.documents.push(this.selectedDocument());
+                    }
+
+                    /**
+                     * Event handler. Called when user wants to edit an existing 
+                     * document.
+                     */
+                    this.onEditDocument = function() {
+                        self.showDocEdit();
+                    }
+
+                    /**
+                     * Event handler. Called when a user wants to delete an 
+                     * existing document, and has confirmed via the modal.
+                     */
+                    this.onDeleteDocument = function() {
+                        self.documents.remove(self.selectedDocument());
+                        $.subscribe("db/delete/complete", self, self.onDocumentDeleted);
+                        dbProxy.delete(self.selectedDocument());
+                    }
+
+                    /**
+                     * Event handler. Called when a document has been deleted
+                     * from the database.
+                     */
+                    this.onDocumentDeleted = function() {
+                        $.unsubscribe("db/delete/complete", this, this.onDocumentDeleted);
+                        this.selectedDocument(null);
+                        $("#deleteDocModal").modal('hide');
+                    }
+
+                    /**
+                     * Event handler. Called when a user has finished editing
+                     * a document and wishes to save it.
+                     */
+                    this.onSaveDocument = function() {
+                        self.selectedDocument().modified(new Date());
+                        $.subscribe("db/save/complete", self, self.onDocumentSaved);
+                        dbProxy.save(self.selectedDocument());
+                    }
+
+                    /**
+                     * Event handler. Called when a document has been updated 
+                     * within the database.
+                     */
+                    this.onDocumentSaved = function() {
+                        $.unsubscribe("db/save/complete", this, this.onDocumentSaved);
+                        this.documents.sort(function(a, b) {
+                            if (a.modified().getTime() < b.modified().getTime()) {
+                                return 1;
+                            } else if (a.modified().getTime() > b.modified().getTime()) {
+                                return -1;
+                            }
+                            return 0;
+                        });
+                        this.showDocList();
+                    }
+
+                    ////////////////////
+                    //FRAME FUNCTIONS //
+                    ////////////////////
+
+                    this.showDocList = function() {
+                        $("#docList").show();
+                        $("#docEdit").hide();
+                    }
+                    this.showDocEdit = function() {
+                        $("#docList").hide();
+                        $("#docEdit").show();
+                    }
+
+                    //////////////////
+                    //SUBSCRIPTIONS //
+                    //////////////////
+
+                    $.subscribe("db/load/complete", this, this.onDocumentsLoaded);
+                }
+                var viewModel = new ViewModel();
+
+                /* STARTUP FUNCTION */
+                $(document).ready(function() {
+                    // check to make sure that the database is working/supported
+                    $("#noDatabaseModal").modal();
+                    if (dbProxy.isNonFunctional) {
+                        $("#noDatabaseModal").modal('show');
+                        return;
+                    }
+                    // load the document list from the database
+                    viewModel.showDocList();
+                    if (dbProxy.isInitialized) {
+                        dbProxy.load();
+                    } else {
+                        $.subscribeOnce("db/init/complete", function() {
+                            dbProxy.load();
+                        });
+                    }
+                });
+
+            })(jQuery, ko, window, document);
+        </script>
+    </body>
+</html>
