@@ -2,7 +2,7 @@
 <html>
     <head>
         <meta charset="utf-8">
-        <meta name="description" content="A basic word processor web application written using Knockout.js and IndexedDB, written by Jon Stout">
+        <meta name="description" content="A basic word processor web application written using Knockout.js and IndexedDB. Written by Jon Stout">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Knockout.js / IndexedDB Demonstration App</title>
         <link rel="author" href="http://www.jonstout.net/">
@@ -247,7 +247,6 @@
                      * @param {[TextDocument]} doc
                      */
                     add: function(doc) {
-                        window.console.log("adding document " + doc.uuid);
                         var store = this.db.transaction(["textDocuments"], "readwrite").objectStore("textDocuments"),
                             request = store.add(doc.toObject()),
                             self = this;
@@ -264,8 +263,6 @@
                      * @param  {[TextDocument]} doc
                      */
                     save: function(doc) {
-                        window.console.log(doc.created().getTime());
-                        window.console.log(doc.modified().getTime());
                         var store = this.db.transaction(["textDocuments"], "readwrite").objectStore("textDocuments"),
                             request = store.get(doc.uuid),
                             self = this;
@@ -317,7 +314,6 @@
                     onDatabaseOpen: function(event) {
                         this.db = event.target.result;
                         this.isInitialized = true;
-                        window.console.log("Database initialized!");
                         $.publish("db/init/complete", null);
                     },
 
@@ -338,7 +334,6 @@
                     onDatabaseSetup: function(event) {
                         var db = event.target.result,
                             store = db.createObjectStore("textDocuments", {keyPath:"uuid"});
-                        window.console.log("Database set up!");
                     }
                 }
                 var dbProxy = new DBProxy();
